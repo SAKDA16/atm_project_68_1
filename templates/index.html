@@ -2,87 +2,69 @@
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Flask ATM Simulation</title>
+    <title>ATM System</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body { background-color: #f4f7f6; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        .atm-card { border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border: none; }
-        .total-banner { background: linear-gradient(45deg, #2c3e50, #3498db); color: white; border-radius: 10px; padding: 20px; margin-bottom: 20px; }
+        body { background: #f4f7f6; }
+        .nav-custom { background: #2c3e50; padding: 15px; }
+        .card { border-radius: 15px; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
     </style>
 </head>
 <body>
-
-<div class="container py-5">
-    <h1 class="text-center mb-4">🏧 ATM Simulation System</h1>
-
-    <div class="total-banner text-center">
-        <h3>ยอดเงินรวมทั้งหมดในระบบ: <span class="fw-bold">{{ "{:,.2f}".format(total_system_balance) }}</span> บาท</h3>
-    </div>
-
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        {% for category, message in messages %}
-          <div class="alert alert-{{ category }} alert-dismissible fade show">{{ message }}</div>
-        {% endfor %}
-      {% endif %}
-    {% endwith %}
-
-    <div class="row g-4">
-        <div class="col-md-4">
-            <div class="card atm-card p-4">
-                <h4 class="mb-3">➕ สร้างบัญชีใหม่</h4>
-                <form action="/create" method="POST">
-                    <input type="text" name="account_number" class="form-control mb-2" placeholder="หมายเลขบัญชี" required>
-                    <input type="text" name="username" class="form-control mb-2" placeholder="ชื่อผู้ใช้" required>
-                    <input type="number" name="balance" class="form-control mb-3" placeholder="ยอดเงินเริ่มต้น" step="0.01">
-                    <button type="submit" class="btn btn-primary w-100">สร้างบัญชี</button>
-                </form>
-            </div>
-
-            <div class="card atm-card p-4 mt-4">
-                <h4 class="mb-3">💸 ฝาก/ถอนเงิน</h4>
-                <form action="/transaction" method="POST">
-                    <input type="text" name="account_number" class="form-control mb-2" placeholder="หมายเลขบัญชี" required>
-                    <input type="number" name="amount" class="form-control mb-2" placeholder="จำนวนเงิน" step="0.01" required>
-                    <div class="d-flex gap-2">
-                        <button type="submit" name="action" value="deposit" class="btn btn-success flex-grow-1">ฝากเงิน</button>
-                        <button type="submit" name="action" value="withdraw" class="btn btn-warning flex-grow-1">ถอนเงิน</button>
-                    </div>
-                </form>
-            </div>
+    <nav class="nav-custom mb-4 text-center">
+        <a href="/" class="text-white text-decoration-none mx-3 fw-bold">🏠 หน้าหลัก</a>
+        <a href="/history" class="text-white text-decoration-none mx-3">📜 ประวัติรายการ</a>
+    </nav>
+    <div class="container">
+        <div class="bg-primary text-white p-4 rounded-4 mb-4 text-center">
+            <h5>ยอดเงินรวมทั้งระบบ</h5>
+            <h1 class="fw-bold">{{ "{:,.2f}".format(total) }} THB</h1>
         </div>
-
-        <div class="col-md-8">
-            <div class="card atm-card p-4">
-                <h4 class="mb-3">📋 รายการบัญชีทั้งหมด</h4>
-                <table class="table table-hover">
-                    <thead class="table-light">
-                        <tr>
-                            <th>เลขบัญชี</th>
-                            <th>ชื่อผู้ใช้</th>
-                            <th>ยอดเงินคงเหลือ</th>
-                            <th>จัดการ</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for acc in accounts %}
-                        <tr>
-                            <td>{{ acc.account_number }}</td>
-                            <td>{{ acc.username }}</td>
-                            <td class="fw-bold text-primary">{{ "{:,.2f}".format(acc.balance) }}</td>
-                            <td>
-                                <a href="/delete/{{ acc.id }}" class="btn btn-outline-danger btn-sm" onclick="return confirm('ยืนยันการลบบัญชี?')">ลบ</a>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+        {% with messages = get_flashed_messages(with_categories=true) %}{% if messages %}{% for c, m in messages %}
+            <div class="alert alert-{{c}}">{{m}}</div>
+        {% endfor %}{% endif %}{% endwith %}
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card p-3 mb-3">
+                    <h6>➕ สร้างบัญชี</h6>
+                    <form action="/create" method="POST">
+                        <input type="text" name="account_number" class="form-control mb-2" placeholder="เลขบัญชี" required>
+                        <input type="text" name="username" class="form-control mb-2" placeholder="ชื่อ" required>
+                        <input type="number" name="balance" class="form-control mb-2" placeholder="เงินต้น" step="0.1">
+                        <button class="btn btn-primary w-100">บันทึก</button>
+                    </form>
+                </div>
+                <div class="card p-3">
+                    <h6>💸 ฝาก/ถอน</h6>
+                    <form action="/action" method="POST">
+                        <input type="text" name="account_number" class="form-control mb-2" placeholder="เลขบัญชี" required>
+                        <input type="number" name="amount" class="form-control mb-2" placeholder="จำนวนเงิน" required>
+                        <div class="d-flex gap-2">
+                            <button name="action" value="deposit" class="btn btn-success flex-grow-1">ฝาก</button>
+                            <button name="action" value="withdraw" class="btn btn-warning flex-grow-1">ถอน</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <div class="col-md-8">
+                <div class="card p-3">
+                    <h6>📋 รายชื่อบัญชี</h6>
+                    <table class="table">
+                        <thead><tr><th>เลขบัญชี</th><th>ชื่อ</th><th>ยอดเงิน</th><th>ลบ</th></tr></thead>
+                        <tbody>
+                            {% for a in accounts %}
+                            <tr>
+                                <td>{{a.account_number}}</td>
+                                <td>{{a.username}}</td>
+                                <td class="fw-bold">{{ "{:,.2f}".format(a.balance) }}</td>
+                                <td><a href="/delete/{{a.id}}" class="btn btn-sm btn-danger">ลบ</a></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
