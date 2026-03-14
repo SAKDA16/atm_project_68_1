@@ -3,15 +3,13 @@ from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 
 app = Flask(__name__)
-app.secret_key = "atm_secret_68_key"
+app.secret_key = "atm_official_secure_key"
 
-# การตั้งค่า MySQL (ปรับชื่อ db เป็น atm_db)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:@localhost/atm_db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 
-# --- Database Models ---
 class Account(db.Model):
     __tablename__ = 'accounts'
     id = db.Column(db.Integer, primary_key=True)
@@ -35,7 +33,6 @@ def log_event(acc_num, action, amount=0.0):
     db.session.add(log)
     db.session.commit()
 
-# --- Routes ---
 @app.route('/')
 def index():
     accounts = Account.query.all()
@@ -51,43 +48,61 @@ def history():
 def create():
     acc_num = request.form.get('account_number')
     name = request.form.get('username')
-    bal = float(request.form.get('balance', 0))
-    if Account.query.filter_by(account_number=acc_num).first():
-        flash("เลขบัญชีนี้มีอยู่แล้ว!", "danger")
+    try:
+        bal = float(request.form.get('balance', 0))
+    except: bal = 0
+
+    if bal < 0:
+        flash("ไม่สามารถสร้างบัญชีด้วยยอดเงินติดลบได้", "danger")
+    elif Account.query.filter_by(account_number=acc_num).first():
+        flash("เลขบัญชีนี้มีอยู่แล้วในระบบ", "danger")
     else:
         db.session.add(Account(account_number=acc_num, username=name, balance=bal))
         db.session.commit()
         log_event(acc_num, "เปิดบัญชีใหม่", bal)
-        flash("สร้างบัญชีสำเร็จ", "success")
+        flash("ลงทะเบียนบัญชีใหม่สำเร็จ", "success")
     return redirect(url_for('index'))
 
 @app.route('/action', methods=['POST'])
 def action():
     acc_num = request.form.get('account_number')
-    amt = float(request.form.get('amount', 0))
     act = request.form.get('action')
+    try:
+        amt = float(request.form.get('amount', 0))
+    except:
+        flash("กรุณาระบุจำนวนเงินเป็นตัวเลข", "danger")
+        return redirect(url_for('index'))
+
+    if amt <= 0:
+        flash("จำนวนเงินต้องมากกว่า 0 บาท", "danger")
+        return redirect(url_for('index'))
+
     acc = Account.query.filter_by(account_number=acc_num).first()
     if not acc:
-        flash("ไม่พบเลขบัญชี", "danger")
+        flash("ไม่พบข้อมูลเลขบัญชีนี้", "danger")
     elif act == 'deposit':
         acc.balance += amt
         log_event(acc_num, "ฝากเงิน", amt)
-        flash("ฝากเงินสำเร็จ", "success")
-    elif act == 'withdraw' and acc.balance >= amt:
-        acc.balance -= amt
-        log_event(acc_num, "ถอนเงิน", amt)
-        flash("ถอนเงินสำเร็จ", "success")
-    else:
-        flash("ยอดเงินไม่พอ!", "warning")
+        flash(f"ฝากเงินจำนวน {amt:,.2f} บาท สำเร็จ", "success")
+    elif act == 'withdraw':
+        if acc.balance >= amt:
+            acc.balance -= amt
+            log_event(acc_num, "ถอนเงิน", amt)
+            flash(f"ถอนเงินจำนวน {amt:,.2f} บาท สำเร็จ", "success")
+        else:
+            flash("ยอดเงินในบัญชีไม่เพียงพอ", "warning")
+    
     db.session.commit()
     return redirect(url_for('index'))
 
 @app.route('/delete/<int:id>')
 def delete(id):
     acc = Account.query.get(id)
-    log_event(acc.account_number, "ลบบัญชี")
-    db.session.delete(acc)
-    db.session.commit()
+    if acc:
+        log_event(acc.account_number, "ลบบัญชี")
+        db.session.delete(acc)
+        db.session.commit()
+        flash("ลบข้อมูลบัญชีเรียบร้อยแล้ว", "info")
     return redirect(url_for('index'))
 
 if __name__ == '__main__':
